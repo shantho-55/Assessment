@@ -1,0 +1,29 @@
+collection_id: 189
+start_month: '2012-01'
+end_month: '2016-12'
+as_of_date: '2026-07-18'
+raw_dir: data/raw
+cleaned_dir: data/cleaned
+transformed_dir: data/transformed
+failed_dir: data/failed
+hashed_dir: data/hashed
+outputs_dir: outputs
+output_format: csv
+anomaly:
+  group_by:
+    - month
+    - town
+    - flat_type
+  iqr_multiplier: 1.5
+expected_columns:
+  - month
+  - town
+  - flat_type
+  - block
+  - street_name
+  - storey_range
+  - floor_area_sqm
+  - flat_model
+  - lease_commence_date
+  - remaining_lease
+  - resale_price
