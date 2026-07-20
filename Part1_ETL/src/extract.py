@@ -18,37 +18,37 @@ def get_collection_metadata(collection_id: int) -> Dict[str, Any]:
     response.raise_for_status()
     return response.json()
 
+def get_dataset_metadata(dataset_id: str) -> Dict[str, Any]:
+    response = requests.get(DATASET_METADATA_URL.format(dataset_id=dataset_id), timeout=60)
+    response.raise_for_status()
+    return response.json()
 
 def _find_candidate_dataset_ids(metadata: Dict[str, Any]) -> List[Dict[str, str]]:
     """Return candidate HDB resale dataset metadata from Collection 189.
 
-    data.gov.sg metadata structures can change, so this parser searches recursively
-    for dictionaries containing an id and a name/title with resale flat price language.
+    The v2 collection metadata endpoint only lists child dataset ids under
+    ``data.collectionMetadata.childDatasets`` (plain id strings, no titles), so each
+    id must be resolved individually via the per-dataset metadata endpoint to get a
+    real name and coverage window before it can be filtered for relevance.
     """
+    child_ids: List[str] = metadata.get("data", {}).get("collectionMetadata", {}).get("childDatasets", [])
+
     candidates = []
-
-    def walk(obj):
-        if isinstance(obj, dict):
-            values = " ".join(str(v) for v in obj.values() if isinstance(v, (str, int, float)))
-            item_id = obj.get("datasetId") or obj.get("id") or obj.get("resource_id") or obj.get("resourceId")
-            title = obj.get("name") or obj.get("title") or obj.get("datasetName") or values[:120]
-            if item_id and re.search(r"resale flat prices", values, re.I):
-                candidates.append({"id": str(item_id), "title": str(title)})
-            for v in obj.values():
-                walk(v)
-        elif isinstance(obj, list):
-            for item in obj:
-                walk(item)
-
-    walk(metadata)
-    deduped = []
-    seen = set()
-    for c in candidates:
-        key = c["id"]
-        if key not in seen:
-            seen.add(key)
-            deduped.append(c)
-    return deduped
+    for dataset_id in child_ids:
+        try:
+            dataset_meta = get_dataset_metadata(dataset_id).get("data", {})
+        except requests.RequestException:
+            continue
+        name = dataset_meta.get("name", "")
+        if not re.search(r"resale flat prices", name, re.I):
+            continue
+        candidates.append({
+            "id": dataset_id,
+            "title": name,
+            "coverage_start": dataset_meta.get("coverageStart", ""),
+            "coverage_end": dataset_meta.get("coverageEnd", ""),
+        })
+    return candidates
 
 
 def fetch_dataset_records(resource_id: str) -> pd.DataFrame:
@@ -80,6 +80,10 @@ def extract_raw_datasets(config: Dict[str, Any]) -> List[Path]:
 
     saved_paths = []
     for item in candidates:
+        coverage_start = str(item.get("coverage_start", ""))[:7]
+        coverage_end = str(item.get("coverage_end", ""))[:7]
+        if coverage_start and coverage_end and (coverage_end < config["start_month"] or coverage_start > config["end_month"]):
+            continue
         df = fetch_dataset_records(item["id"])
         if df.empty or "month" not in [c.lower() for c in df.columns]:
             continue
