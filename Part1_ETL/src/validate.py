@@ -89,7 +89,13 @@ def validate_dataset(df: pd.DataFrame, config: Dict[str, Any]) -> Tuple[pd.DataF
 
 
 def handle_duplicates(cleaned: pd.DataFrame, failed: pd.DataFrame, config: Dict[str, Any]) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    key_cols = [c for c in cleaned.columns if c != "resale_price"]
+    # Exclude resale_price (per the documented composite-key rule) and internal
+    # pipeline bookkeeping columns such as _source_file, which are not business
+    # fields and would otherwise prevent a genuine duplicate transaction that
+    # happens to appear in two different downloaded source files from being
+    # detected as a duplicate at all.
+    non_key_cols = {"resale_price", "_source_file"}
+    key_cols = [c for c in cleaned.columns if c not in non_key_cols]
     sorted_df = cleaned.sort_values("resale_price", ascending=False).copy()
     kept = sorted_df.drop_duplicates(subset=key_cols, keep="first").copy()
     dup_failed = sorted_df[sorted_df.duplicated(subset=key_cols, keep="first")].copy()
