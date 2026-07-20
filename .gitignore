@@ -1,0 +1,16 @@
+# Generated pipeline data (downloaded raw + derived outputs)
+Part1_ETL/data/raw/*.csv
+Part1_ETL/data/cleaned/
+Part1_ETL/data/transformed/
+Part1_ETL/data/failed/
+Part1_ETL/data/hashed/
+Part1_ETL/outputs/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+.vscode/
