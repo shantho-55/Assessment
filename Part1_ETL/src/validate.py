@@ -6,11 +6,11 @@ from typing import Dict, Any, Tuple, List
 
 import numpy as np
 import pandas as pd
-
+import logging
 from src.utils import add_failure_reason, project_root, write_csv
 
 STOREY_PATTERN = re.compile(r"^\d{2}\s+TO\s+\d{2}$")
-
+logger = logging.getLogger(__name__)
 
 def _parse_year_month(series: pd.Series) -> pd.Series:
     return pd.to_datetime(series.astype(str) + "-01", errors="coerce")
@@ -29,8 +29,11 @@ def recompute_remaining_lease(lease_commence_year, as_of_date: date) -> str:
         months = max(months_remaining, 0) % 12
         return f"{years} years {months} months"
     except Exception:
+        logger.warning(
+            "recompute_remaining_lease: could not parse lease_commence_date=%r; returning NaN",
+            lease_commence_year,
+        )
         return np.nan
-
 
 def apply_core_type_casts(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
