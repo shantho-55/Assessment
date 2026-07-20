@@ -5,9 +5,11 @@ from datetime import date
 from typing import Dict, Any
 
 import pandas as pd
+import logging
 
 from src.validate import recompute_remaining_lease
 
+logger = logging.getLogger(__name__)
 
 def _block_3_digits(block) -> str:
     digits = re.sub(r"\D", "", str(block))
@@ -19,8 +21,12 @@ def _price_prefix(avg_price) -> str:
         digits = re.sub(r"\D", "", str(int(float(avg_price))))
         return digits[:2].zfill(2)
     except Exception:
+        logger.warning(
+            "_price_prefix: could not derive a price prefix from avg_resale_price_group=%r; "
+            "falling back to '00' (this collapses the resale_identifier's price component)",
+            avg_price,
+        )
         return "00"
-
 
 def transform_dataset(cleaned: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
     out = cleaned.copy()
